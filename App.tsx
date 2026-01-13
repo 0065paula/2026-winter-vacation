@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import StatsHeader from './components/StatsHeader';
 import Calendar from './components/Calendar';
 import EventModal from './components/EventModal';
+import Toast from './components/Toast';
 import { CalendarEvent } from './types';
 import { STORAGE_KEY } from './constants';
 import { formatDateKey } from './utils';
@@ -11,6 +12,7 @@ const App: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | undefined>(undefined);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   
   // Load from LocalStorage on mount
   useEffect(() => {
@@ -77,6 +79,7 @@ const App: React.FC = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    setToast({ message: '备份文件已下载', type: 'success' });
   };
 
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -104,18 +107,16 @@ const App: React.FC = () => {
 
           if (validEvents.length > 0) {
               setEvents(validEvents);
-              setTimeout(() => {
-                alert(`成功导入 ${validEvents.length} 个事件！`);
-              }, 100);
+              setToast({ message: `成功导入 ${validEvents.length} 个事件！`, type: 'success' });
           } else {
-             alert('未在文件中找到有效的事件数据。');
+             setToast({ message: '未在文件中找到有效的事件数据。', type: 'error' });
           }
         } else {
-          alert('无效的备份文件格式：必须是事件数组');
+          setToast({ message: '无效的备份文件格式：必须是事件数组', type: 'error' });
         }
       } catch (err) {
         console.error(err);
-        alert('文件解析失败，请检查文件格式');
+        setToast({ message: '文件解析失败，请检查文件格式', type: 'error' });
       }
     };
     reader.readAsText(file);
@@ -124,6 +125,14 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-900 pb-20">
+      {toast && (
+        <Toast 
+          message={toast.message} 
+          type={toast.type} 
+          onClose={() => setToast(null)} 
+        />
+      )}
+
       <StatsHeader 
         onExport={handleExport}
         onImport={handleImport}
