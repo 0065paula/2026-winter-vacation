@@ -27,3 +27,15 @@ export const EVENT_TYPES: { type: EventType; label: string; color: string; ring:
   { type: 'travel', label: '✈️ 出行 (Travel)', color: 'text-orange-700', ring: 'ring-orange-200', bg: 'bg-orange-50' },
   { type: 'other', label: '✨ 其他 (Other)', color: 'text-gray-700', ring: 'ring-gray-200', bg: 'bg-gray-50' },
 ];
+
+export interface Goal {
+  id: string;
+  title: string;
+  color: string; // hex or tailwind class reference
+  emoji?: string;
+}
+
+// Key format: `${goalId}_${dateStr}`
+export type GoalRecords = Record<string, boolean>;
+
+export type ViewMode = 'calendar' | 'goals';

@@ -69,6 +69,29 @@ export const getCalendarGrid = (): DateCellInfo[] => {
   return cells;
 };
 
+// Generate simple array of days for the tracker list
+export const getAllDaysInRange = (): { date: Date; dateStr: string; dayLabel: string; isWeekend: boolean; isToday: boolean }[] => {
+  const start = parseDate(START_DATE_STR);
+  const end = parseDate(END_DATE_STR);
+  const today = new Date();
+  const days = [];
+  const current = new Date(start);
+  const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
+
+  while (current <= end) {
+    const d = new Date(current);
+    days.push({
+      date: d,
+      dateStr: formatDateKey(d),
+      dayLabel: weekDays[d.getDay()],
+      isWeekend: d.getDay() === 0 || d.getDay() === 6,
+      isToday: isSameDay(d, today)
+    });
+    current.setDate(current.getDate() + 1);
+  }
+  return days;
+};
+
 // Calculate progress statistics
 export const getProgressStats = () => {
   const start = parseDate(START_DATE_STR);
