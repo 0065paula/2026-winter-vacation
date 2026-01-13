@@ -99,11 +99,11 @@ const App: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `winter-planner-backup-${formatDateKey(new Date())}.json`;
+    link.download = `winter-planner-export-${formatDateKey(new Date())}.json`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    setToast({ message: '备份文件已下载', type: 'success' });
+    setToast({ message: '导出成功', type: 'success' });
   };
 
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -136,7 +136,7 @@ const App: React.FC = () => {
              setToast({ message: '未在文件中找到有效的事件数据。', type: 'error' });
           }
         } else {
-          setToast({ message: '无效的备份文件格式：必须是事件数组', type: 'error' });
+          setToast({ message: '无效的文件格式：必须是事件数组', type: 'error' });
         }
       } catch (err) {
         console.error(err);

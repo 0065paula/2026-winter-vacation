@@ -1,5 +1,5 @@
-import React from 'react';
-import { CalendarClock, Download, Upload } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { CalendarClock, Download, Upload, MoreHorizontal } from 'lucide-react';
 import { getProgressStats } from '../utils';
 import { START_DATE_STR, END_DATE_STR } from '../constants';
 
@@ -10,22 +10,81 @@ interface StatsHeaderProps {
 
 const StatsHeader: React.FC<StatsHeaderProps> = ({ onExport, onImport }) => {
   const stats = getProgressStats();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   return (
     <div className="bg-white border-b border-gray-200 shadow-sm relative z-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           
-          {/* Title Area */}
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-indigo-100 rounded-lg text-indigo-600">
-              <CalendarClock size={24} />
+          {/* Header Top Row (Mobile) / Left Part (Desktop) */}
+          <div className="flex items-center justify-between w-full md:w-auto">
+            
+            {/* Title Group */}
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-indigo-100 rounded-lg text-indigo-600">
+                <CalendarClock size={24} />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-gray-900">我的寒假全景</h1>
+                <p className="text-xs text-gray-500 font-mono">
+                  {START_DATE_STR} ~ {END_DATE_STR}
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-xl font-bold text-gray-900">我的寒假全景</h1>
-              <p className="text-xs text-gray-500 font-mono">
-                {START_DATE_STR} ~ {END_DATE_STR}
-              </p>
+
+            {/* Mobile Menu Button - Visible only on mobile */}
+            <div className="md:hidden relative" ref={menuRef}>
+                <button 
+                    onClick={() => setIsMenuOpen(!isMenuOpen)}
+                    className="p-2 -mr-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700 rounded-full transition-colors active:bg-gray-200"
+                    aria-label="更多选项"
+                >
+                    <MoreHorizontal size={24} />
+                </button>
+                
+                {/* Dropdown Menu */}
+                {isMenuOpen && (
+                    <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 py-1.5 z-50 animate-in fade-in zoom-in-95 duration-200 origin-top-right">
+                         <button 
+                            onClick={() => {
+                                onExport();
+                                setIsMenuOpen(false);
+                            }}
+                            className="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-3 active:bg-gray-100"
+                        >
+                            <Download size={18} className="text-gray-400" />
+                            导出数据
+                        </button>
+                        <div className="h-px bg-gray-100 my-0.5"></div>
+                        <label className="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-3 cursor-pointer active:bg-gray-100">
+                            <Upload size={18} className="text-gray-400" />
+                            导入数据
+                            <input 
+                                type="file" 
+                                accept=".json" 
+                                className="hidden" 
+                                onClick={(e) => (e.currentTarget.value = '')}
+                                onChange={(e) => {
+                                    onImport(e);
+                                    setIsMenuOpen(false);
+                                }}
+                            />
+                        </label>
+                    </div>
+                )}
             </div>
           </div>
 
@@ -53,18 +112,18 @@ const StatsHeader: React.FC<StatsHeaderProps> = ({ onExport, onImport }) => {
              </div>
           </div>
 
-          {/* Actions */}
-          <div className="flex gap-2">
+          {/* Desktop Actions - Hidden on mobile */}
+          <div className="hidden md:flex gap-2">
             <button 
               onClick={onExport}
               className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
             >
               <Download size={16} />
-              备份
+              导出
             </button>
             <label className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 cursor-pointer transition-colors">
               <Upload size={16} />
-              恢复
+              导入
               <input 
                 type="file" 
                 accept=".json" 

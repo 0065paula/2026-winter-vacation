@@ -206,7 +206,7 @@ const Calendar: React.FC<CalendarProps> = ({ events, onDateClick, onEventClick }
       
       <div className="mt-8 text-center text-gray-400 text-xs sm:text-sm pb-8 space-y-1">
         <p>
-          Built with AI &bull; Idea by{' '}
+          Built with AI &bull; Concept by{' '}
           <span className="relative group cursor-help border-b border-dotted border-gray-400 hover:text-gray-600 transition-colors">
             0065paula
             <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none w-max max-w-[260px] shadow-lg leading-relaxed z-50">
