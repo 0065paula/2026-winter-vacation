@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { X, Clock, Type, Repeat, Trash2, ChevronDown, Check } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { X, Clock, Type, Repeat, Trash2, ChevronDown, Check, Layers } from 'lucide-react';
 import { CalendarEvent, EventType, RepeatMode, EVENT_TYPES } from '../types';
 import { parseDate, formatDateKey } from '../utils';
 
@@ -7,20 +7,36 @@ interface EventModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialDate: string;
-  onSave: (events: CalendarEvent[]) => void;
-  onDelete?: (eventId: string) => void;
+  events: CalendarEvent[]; // Needed to find related series events
+  onSave: (events: CalendarEvent[], idsToRemove?: string[]) => void;
+  onDelete?: (eventId: string | string[]) => void;
   existingEvent?: CalendarEvent;
 }
 
 const EventModal: React.FC<EventModalProps> = ({ 
-  isOpen, onClose, initialDate, onSave, onDelete, existingEvent 
+  isOpen, onClose, initialDate, events, onSave, onDelete, existingEvent 
 }) => {
   const [title, setTitle] = useState('');
   const [time, setTime] = useState('');
   const [type, setType] = useState<EventType>('study');
   const [mode, setMode] = useState<RepeatMode>('single');
   const [endDate, setEndDate] = useState('');
-  const [interval, setInterval] = useState(2); // For custom interval
+  const [interval, setInterval] = useState(2);
+  
+  // Series editing state
+  const [applyToSeries, setApplyToSeries] = useState(false);
+
+  // Identify related events in the same series
+  const relatedEvents = useMemo(() => {
+    if (!existingEvent) return [];
+    // Assuming series IDs are formatted like "baseId-timestamp"
+    // Single events are just "baseId"
+    const baseId = existingEvent.id.split('-')[0];
+    // Find all events starting with this baseId
+    return events.filter(e => e.id.startsWith(baseId + '-') || e.id === baseId);
+  }, [existingEvent, events]);
+
+  const isSeries = relatedEvents.length > 1;
 
   // Reset or Load state when opening
   useEffect(() => {
@@ -29,14 +45,16 @@ const EventModal: React.FC<EventModalProps> = ({
         setTitle(existingEvent.title);
         setTime(existingEvent.time || '');
         setType(existingEvent.type);
-        setMode('single'); // Editing is always single mode for simplicity
+        setMode('single'); 
         setEndDate('');
+        setApplyToSeries(false); // Default to single edit
       } else {
         setTitle('');
         setTime('');
         setType('study');
         setMode('single');
-        setEndDate(initialDate); // Default end date to same day
+        setEndDate(initialDate);
+        setApplyToSeries(false);
       }
     }
   }, [isOpen, existingEvent, initialDate]);
@@ -47,56 +65,91 @@ const EventModal: React.FC<EventModalProps> = ({
     e.preventDefault();
     if (!title.trim()) return;
 
-    const newEvents: CalendarEvent[] = [];
-    const baseId = Date.now().toString();
-    const startDateObj = parseDate(initialDate);
-    const endDateObj = parseDate(endDate || initialDate);
-
-    // 1. Single Mode (or Editing existing)
-    if (mode === 'single') {
-      newEvents.push({
-        id: existingEvent ? existingEvent.id : baseId,
-        title,
-        time,
-        type,
-        date: initialDate
-      });
+    // A. Editing an Existing Event
+    if (existingEvent) {
+        if (isSeries && applyToSeries) {
+            // Edit ALL related events
+            // We create new objects for all related events with updated props, but keep their original dates/IDs
+            const updatedEvents = relatedEvents.map(ev => ({
+                ...ev,
+                title,
+                time,
+                type
+            }));
+            const idsToRemove = relatedEvents.map(e => e.id);
+            onSave(updatedEvents, idsToRemove);
+        } else {
+            // Edit ONLY current event
+            const updatedEvent = {
+                ...existingEvent,
+                title,
+                time,
+                type,
+                // date remains same
+            };
+            onSave([updatedEvent], [existingEvent.id]);
+        }
     } 
-    // 2. Continuous Range
-    else if (mode === 'range') {
-      const current = new Date(startDateObj);
-      while (current <= endDateObj) {
-        newEvents.push({
-          id: `${baseId}-${current.getTime()}`,
-          title,
-          time,
-          type,
-          date: formatDateKey(current)
-        });
-        current.setDate(current.getDate() + 1);
-      }
-    }
-    // 3. Periodic
+    // B. Creating New Event(s)
     else {
-      const current = new Date(startDateObj);
-      let step = 1;
-      if (mode === 'weekly') step = 7;
-      if (mode === 'custom') step = interval;
+        const newEvents: CalendarEvent[] = [];
+        const baseId = Date.now().toString();
+        const startDateObj = parseDate(initialDate);
+        const endDateObj = parseDate(endDate || initialDate);
 
-      while (current <= endDateObj) {
-        newEvents.push({
-          id: `${baseId}-${current.getTime()}`,
-          title,
-          time,
-          type,
-          date: formatDateKey(current)
-        });
-        current.setDate(current.getDate() + step);
-      }
+        if (mode === 'single') {
+            newEvents.push({
+                id: baseId,
+                title,
+                time,
+                type,
+                date: initialDate
+            });
+        } else if (mode === 'range') {
+            const current = new Date(startDateObj);
+            while (current <= endDateObj) {
+                newEvents.push({
+                    id: `${baseId}-${current.getTime()}`,
+                    title,
+                    time,
+                    type,
+                    date: formatDateKey(current)
+                });
+                current.setDate(current.getDate() + 1);
+            }
+        } else {
+            const current = new Date(startDateObj);
+            let step = 1;
+            if (mode === 'weekly') step = 7;
+            if (mode === 'custom') step = interval;
+
+            while (current <= endDateObj) {
+                newEvents.push({
+                    id: `${baseId}-${current.getTime()}`,
+                    title,
+                    time,
+                    type,
+                    date: formatDateKey(current)
+                });
+                current.setDate(current.getDate() + step);
+            }
+        }
+        onSave(newEvents);
     }
-
-    onSave(newEvents);
     onClose();
+  };
+
+  const handleDelete = () => {
+      if (!onDelete || !existingEvent) return;
+      
+      if (isSeries && applyToSeries) {
+          // Delete all
+          onDelete(relatedEvents.map(e => e.id));
+      } else {
+          // Delete one
+          onDelete(existingEvent.id);
+      }
+      onClose();
   };
 
   return (
@@ -185,7 +238,32 @@ const EventModal: React.FC<EventModalProps> = ({
                   </div>
                 </div>
 
-                {/* Repeat Mode */}
+                {/* Series Edit Checkbox */}
+                {existingEvent && isSeries && (
+                    <div className="bg-amber-50 rounded-xl p-4 border border-amber-100 flex items-start gap-3">
+                        <div className="p-1 bg-amber-100 rounded text-amber-600 mt-0.5">
+                            <Layers size={16} />
+                        </div>
+                        <div className="flex-1">
+                            <label className="flex items-center gap-3 cursor-pointer select-none">
+                                <input 
+                                    type="checkbox" 
+                                    checked={applyToSeries}
+                                    onChange={(e) => setApplyToSeries(e.target.checked)}
+                                    className="w-5 h-5 text-amber-600 border-gray-300 rounded focus:ring-amber-500"
+                                />
+                                <span className="text-sm font-medium text-amber-900">
+                                    同时应用到该系列的其它 {relatedEvents.length - 1} 个活动
+                                </span>
+                            </label>
+                            <p className="text-xs text-amber-700 mt-1 ml-8 leading-relaxed">
+                                勾选后，修改内容（标题/时间/类型）或删除操作将影响整个系列，但日期保持不变。
+                            </p>
+                        </div>
+                    </div>
+                )}
+
+                {/* Repeat Mode (Only for New Events) */}
                 {!existingEvent && (
                   <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
                     <label className="block text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1.5">
@@ -225,7 +303,7 @@ const EventModal: React.FC<EventModalProps> = ({
                               min={initialDate}
                               value={endDate}
                               onChange={(e) => setEndDate(e.target.value)}
-                              className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-2 text-sm"
+                              className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-2 px-3 text-sm"
                             />
                           </div>
                           {mode === 'custom' && (
@@ -236,7 +314,7 @@ const EventModal: React.FC<EventModalProps> = ({
                                 min="2"
                                 value={interval}
                                 onChange={(e) => setInterval(Number(e.target.value))}
-                                className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-2 text-sm"
+                                className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-2 px-3 text-sm"
                               />
                             </div>
                           )}
@@ -253,10 +331,11 @@ const EventModal: React.FC<EventModalProps> = ({
                  {existingEvent && onDelete ? (
                    <button
                      type="button"
-                     onClick={() => { onDelete(existingEvent.id); onClose(); }}
+                     onClick={handleDelete}
                      className="w-full sm:w-auto flex justify-center items-center py-3.5 px-6 rounded-xl text-base font-bold text-red-600 bg-red-50 hover:bg-red-100 transition-colors"
                    >
-                     <Trash2 size={18} className="mr-2"/> 删除
+                     <Trash2 size={18} className="mr-2"/> 
+                     {applyToSeries ? '删除全部' : '删除'}
                    </button>
                  ) : (
                     <button
@@ -272,7 +351,8 @@ const EventModal: React.FC<EventModalProps> = ({
                   type="submit"
                   className="w-full sm:w-auto flex justify-center items-center py-3.5 px-6 border border-transparent rounded-xl shadow-sm text-base font-bold text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 active:scale-[0.98] transition-transform"
                 >
-                  <Check size={20} className="mr-2 sm:hidden"/> 保存
+                  <Check size={20} className="mr-2 sm:hidden"/> 
+                  {existingEvent && applyToSeries ? '更新全部' : '保存'}
                 </button>
                </div>
             </div>

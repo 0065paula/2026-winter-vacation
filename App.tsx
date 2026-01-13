@@ -54,19 +54,43 @@ const App: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleSaveEvents = (newEvents: CalendarEvent[]) => {
+  // Supports batch update/removal. 
+  // idsToRemove: optional array of IDs to remove before adding newEvents.
+  const handleSaveEvents = (newEvents: CalendarEvent[], idsToRemove?: string[]) => {
     setEvents(prev => {
-      // If editing a single event, remove the old one first
-      let updated = editingEvent 
-        ? prev.filter(e => e.id !== editingEvent.id) 
-        : [...prev];
+      let updated = [...prev];
+
+      // 1. Remove specific IDs (for batch updates or single edits)
+      if (idsToRemove && idsToRemove.length > 0) {
+        updated = updated.filter(e => !idsToRemove.includes(e.id));
+      } 
+      // Fallback: if no explicit list but editing single event, remove that one
+      else if (editingEvent) {
+        updated = updated.filter(e => e.id !== editingEvent.id);
+      }
+
+      // 2. Add new/updated events
+      updated = [...updated, ...newEvents];
       
-      return [...updated, ...newEvents];
+      return updated;
     });
+
+    if (idsToRemove && idsToRemove.length > 1) {
+        setToast({ message: `成功更新了 ${newEvents.length} 个相关活动`, type: 'success' });
+    }
   };
 
-  const handleDeleteEvent = (eventId: string) => {
-    setEvents(prev => prev.filter(e => e.id !== eventId));
+  const handleDeleteEvent = (eventIdOrIds: string | string[]) => {
+    setEvents(prev => {
+      if (Array.isArray(eventIdOrIds)) {
+        return prev.filter(e => !eventIdOrIds.includes(e.id));
+      }
+      return prev.filter(e => e.id !== eventIdOrIds);
+    });
+    
+    if (Array.isArray(eventIdOrIds) && eventIdOrIds.length > 1) {
+        setToast({ message: '已删除系列中的所有活动', type: 'success' });
+    }
   };
 
   const handleExport = () => {
@@ -150,6 +174,7 @@ const App: React.FC = () => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         initialDate={selectedDate}
+        events={events} // Pass full list for series detection
         onSave={handleSaveEvents}
         onDelete={handleDeleteEvent}
         existingEvent={editingEvent}
