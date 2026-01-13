@@ -22,7 +22,7 @@ const StatsHeader: React.FC<StatsHeaderProps> = ({ onExport, onImport }) => {
               <CalendarClock size={24} />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">怪怪的寒假全景计划</h1>
+              <h1 className="text-xl font-bold text-gray-900">我的寒假全景</h1>
               <p className="text-xs text-gray-500 font-mono">
                 {START_DATE_STR} ~ {END_DATE_STR}
               </p>
